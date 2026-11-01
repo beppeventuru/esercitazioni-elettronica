@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Verifica – Grandezze elettriche e potenze di 10</title>
+  <style>
+    :root{--ink:#172538;--muted:#607086;--blue:#087eaa;--blue-dark:#13516f;--bg:#eef3f8;--card:#fff;--line:#d7e1eb;--good:#13795b;--warn:#9a5b08;--danger:#a43c34;--accent:#087eaa}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input{font:inherit}
+    .hero{background:linear-gradient(130deg,#102d45,#087eaa);color:white;padding:28px max(18px,calc((100% - 980px)/2)) 24px}
+    .hero .eyebrow{margin:0 0 5px;color:#aee8ff;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+    .hero h1{margin:0 0 8px;font-size:clamp(25px,4vw,38px);line-height:1.15}
+    .hero p{margin:0;color:#d9f3ff;line-height:1.5}
+    .wrap{width:min(980px,calc(100% - 28px));margin:20px auto 70px}
+    .statusbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 8px 24px #153a5410}
+    .statusbar strong{font-size:14px}
+    .statusbar .save{margin-left:auto;color:var(--good);font-size:13px;font-weight:700}
+    .progress{height:8px;background:#d6e2ec;border-radius:999px;overflow:hidden;margin:12px 3px 0}
+    .progress>div{height:100%;width:0;background:linear-gradient(90deg,#087eaa,#38a6c9);transition:width .2s}
+    .restore{display:none;margin:14px 0 0;padding:13px 15px;border:1px solid #acd7c9;border-radius:11px;background:#eaf8f3;color:#145f49;font-size:14px}
+    .restore.show{display:block}
+    .screen{display:none}
+    .screen.active{display:block}
+    .card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .cover{padding:26px}
+    .cover h2,.finish h2{margin:0 0 8px;font-size:25px}
+    .cover>p,.finish>p{color:var(--muted);line-height:1.6}
+    .fields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;margin:24px 0}
+    label{display:block;font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px}
+    .identity input{width:100%;padding:12px;border:1px solid #bccbd8;border-radius:9px;background:white}
+    .identity input:focus,.answer:focus{outline:3px solid #b9e6f6;border-color:var(--blue)}
+    .instructions{margin:20px 0 0;padding:16px 18px;background:#f5f9fc;border-radius:11px;line-height:1.65;font-size:14px}
+    .instructions ul{margin:8px 0 0;padding-left:20px}
+    .section-head{padding:20px 22px 16px;border-left:6px solid var(--accent);background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 10%,white),white 80%)}
+    .section-head .tag{color:var(--accent);font-size:11px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+    .section-head h2{margin:4px 0 7px;font-size:23px}
+    .section-head p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+    .questions{padding:6px 16px 18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px}
+    .question{display:flex;align-items:center;gap:8px;min-height:68px;padding:11px 4px;border-bottom:1px solid #edf1f5}
+    .qnum{width:25px;flex:0 0 auto;color:var(--accent);font-weight:900;font-size:12px}
+    .expr{line-height:1.35}
+    .answer{margin-left:auto;width:112px;min-width:80px;padding:9px;border:1px solid #afc2d1;border-radius:8px;text-align:center;background:white}
+    .unit{font-size:13px;min-width:28px}
+    .power{display:inline-flex;align-items:baseline;gap:4px;margin-left:auto;white-space:nowrap}
+    .power .coef{width:55px;margin:0}
+    .power .times{font-weight:700}
+    .power .ten{font-size:19px;font-weight:800}
+    .power .exp{width:40px;margin:0;padding:4px;transform:translateY(-9px);background:#eff9fd;border:1.5px solid #5c9ab7}
+    .power-print,.print-value{display:none}
+    .controls{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:20px 0}
+    .btn{border:0;border-radius:9px;padding:11px 17px;background:var(--blue);color:white;font-weight:800;cursor:pointer}
+    .btn.secondary{background:#e3edf4;color:#204b63}
+    .btn.danger{background:#fff0ef;color:var(--danger)}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .step{color:var(--muted);font-size:13px;font-weight:750;text-align:center}
+    .finish{padding:26px}
+    .summary{width:100%;border-collapse:collapse;margin:18px 0}
+    .summary th,.summary td{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+    .summary th:last-child,.summary td:last-child{text-align:right}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+    .small{color:var(--muted);font-size:13px;line-height:1.55}
+    .print-meta{display:none}
+    @media(max-width:700px){.fields,.questions{grid-template-columns:1fr}.statusbar .save{margin-left:0;width:100%}.question{min-height:62px}.cover,.finish{padding:20px}.controls .btn{padding:10px 12px}.step{font-size:12px}}
+    @page{size:A4;margin:13mm}
+    @media print{
+      body{background:white;font-size:10.5pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}.hero{background:none!important;color:var(--ink);padding:0 0 8px;border-bottom:2px solid var(--blue)}.hero .eyebrow{color:var(--blue)}.hero h1{font-size:20pt}.hero p{color:#405469}.wrap{width:auto;margin:0}.statusbar,.progress,.restore,.controls,.actions,.small{display:none!important}.screen,.screen.active{display:block!important}.screen{break-after:page}.screen:last-child{display:none!important}.card{border:0;margin:0;border-radius:0}.cover{padding:14px 0}.cover h2{font-size:17pt}.fields{margin:14px 0}.identity input{border:0;border-bottom:1px solid #8294a5;border-radius:0;padding:4px 0}.section-head{padding:10px 12px}.section-head h2{font-size:14pt}.section-head p{font-size:9pt}.questions{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 6px}.question{min-height:48px;padding:6px 3px}.answer{display:none!important}.print-value{display:inline-block;margin-left:auto;min-width:82px;text-align:center;border-bottom:1px solid #65798b;font-weight:700}.power .power-edit{display:none}.power .power-print{display:inline-block;min-width:88px;text-align:center;border-bottom:1px solid #65798b;font-weight:700}.power-print sup{font-size:.72em}.print-meta{display:block;margin:8px 0 10px;font-size:9pt;color:#405469}
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">Verifica di elettrotecnica</p>
+    <h1>Grandezze elettriche e potenze di 10</h1>
+    <p>Equivalenze, prefissi, notazione scientifica e calcolo con le potenze.</p>
+  </header>
+  <main class="wrap">
+    <div class="statusbar">
+      <strong id="pageLabel">Pagina 1</strong>
+      <span id="count">0 risposte compilate</span>
+      <span class="save" id="saveStatus" role="status">Salvataggio automatico attivo</span>
+    </div>
+    <div class="progress" aria-label="Avanzamento"><div id="progressFill"></div></div>
+    <div class="restore" id="restore" role="status">✓ Abbiamo recuperato la bozza salvata su questo dispositivo.</div>
+
+    <div id="screens">
+      <section class="screen active" data-page="0">
+        <div class="card cover">
+          <h2>Prima di iniziare</h2>
+          <p>Inserisci i tuoi dati. Le risposte vengono salvate automaticamente su questo browser mentre lavori.</p>
+          <div class="fields identity">
+            <div><label for="student">Nome e cognome</label><input id="student" autocomplete="name" placeholder="Nome e cognome"></div>
+            <div><label for="classroom">Classe</label><input id="classroom" placeholder="Es. 2A"></div>
+            <div><label for="date">Data</label><input id="date" type="date"></div>
+          </div>
+          <div class="instructions"><b>Istruzioni</b><ul><li>Scrivi soltanto il risultato richiesto nella casella.</li><li>Puoi usare la virgola per i numeri decimali.</li><li>Nelle potenze, inserisci l’esponente nella casella piccola sopra il 10.</li><li>Se chiudi per errore, riapri lo stesso link dallo stesso browser e dispositivo.</li><li>Alla fine esporta il PDF e consegnalo su Classroom.</li></ul></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="controls">
+      <button class="btn secondary" id="prev" type="button">← Indietro</button>
+      <span class="step" id="stepLabel"></span>
+      <button class="btn" id="next" type="button">Avanti →</button>
+    </div>
+  </main>
+
+  <script>
+    const sections=[
+      {title:'Tensione elettrica',tag:'Sezione 1 · Equivalenze',color:'#087eaa',desc:'Esegui le conversioni tra volt e millivolt.',q:[['4,2 V','mV'],['0,035 V','mV'],['1,275 V','mV'],['680 mV','V'],['45 mV','V'],['3250 mV','V']]},
+      {title:'Corrente elettrica',tag:'Sezione 2 · Equivalenze',color:'#6956c8',desc:'Esegui le conversioni tra ampere, milliampere e microampere.',q:[['2,4 A','mA'],['0,018 A','mA'],['725 mA','A'],['6,5 mA','µA'],['42.000 µA','mA'],['0,003 A','µA']]},
+      {title:'Resistenza elettrica',tag:'Sezione 3 · Equivalenze',color:'#d16c4c',desc:'Esegui le conversioni tra ohm, kiloohm e megaohm.',q:[['5,6 kΩ','Ω'],['27 kΩ','Ω'],['4700 Ω','kΩ'],['820.000 Ω','kΩ'],['1,8 MΩ','kΩ'],['0,047 MΩ','Ω']]},
+      {title:'Potenze di 10',tag:'Sezione 4 · Conoscenze',color:'#b26b08',desc:'Completa le uguaglianze. Dove vedi il 10, scrivi l’esponente nella casella rialzata.',q:[['10³ =',''],['10⁻² =',''],['10⁰ =',''],['10⁻⁵ =',''],['10^','per ottenere 1.000.000','exp'],['10^','per ottenere 0,001','exp']]},
+      {title:'Operazioni con le potenze',tag:'Sezione 5 · Calcolo',color:'#147d69',desc:'Calcola l’esponente risultante.',q:[['10³ × 10⁵ =','', 'exp'],['10⁻² × 10⁶ =','', 'exp'],['10⁴ : 10⁷ =','', 'exp'],['10⁻³ : 10⁻⁵ =','', 'exp'],['10² × 10⁻⁶ =','', 'exp'],['10⁰ : 10⁴ =','', 'exp']]},
+      {title:'Notazione scientifica',tag:'Sezione 6 · Applicazione',color:'#a24d89',desc:'Scrivi il risultato nella forma coefficiente × 10ⁿ.',q:[['(4 × 10²) × (3 × 10⁴) =','', 'power'],['(8 × 10⁵) : (2 × 10²) =','', 'power'],['(5 × 10⁻³) × (2 × 10⁶) =','', 'power'],['(12 × 10⁴) : (3 × 10⁻²) =','', 'power']]},
+      {title:'Grandezze e prefissi',tag:'Sezione 7 · Problemi',color:'#356aa7',desc:'Applica i prefissi alle grandezze elettriche.',q:[['8 mA =','A in notazione scientifica','power','A'],['3,5 kΩ =','Ω in notazione scientifica','power','Ω'],['250 µA =','mA'],['0,015 A =','mA'],['Qual è maggiore: 2,2 MΩ oppure 950 kΩ?',''],['Qual è maggiore: 3 mA oppure 2800 µA?','']]}
+    ];
+
+    const STORE='verifica_elettronica_potenze_v1';
+    let saved={};
+    try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch{}
+    const hadDraft=Object.keys(saved).some(k=>k!=='page'&&String(saved[k]).trim());
+    const screensRoot=document.getElementById('screens');
+    const make=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node};
+
+    function addTextAnswer(item,key,label){
+      const input=make('input','answer');input.type='text';input.autocomplete='off';input.dataset.key=key;input.setAttribute('aria-label',label);input.value=saved[key]||'';
+      input.addEventListener('input',persist);item.append(input,make('span','print-value'));
+    }
+    function addPowerAnswer(item,key,label,withCoefficient,unit){
+      const holder=make('span','power');const edit=make('span','power-edit');
+      if(withCoefficient){const coef=make('input','answer coef');coef.type='text';coef.inputMode='decimal';coef.autocomplete='off';coef.dataset.key=key+'_coef';coef.value=saved[coef.dataset.key]||'';coef.setAttribute('aria-label',label+', coefficiente');coef.addEventListener('input',persist);edit.append(coef,make('span','times','×'))}
+      edit.append(make('span','ten','10'));
+      const exp=make('input','answer exp');exp.type='text';exp.inputMode='numeric';exp.autocomplete='off';exp.dataset.key=key+'_exp';exp.value=saved[exp.dataset.key]||'';exp.setAttribute('aria-label',label+', esponente');exp.addEventListener('input',persist);edit.append(exp);
+      holder.append(edit,make('span','power-print'));if(unit)holder.append(make('span','unit',unit));item.append(holder);
+    }
+
+    sections.forEach((section,si)=>{
+      const screen=make('section','screen');screen.dataset.page=String(si+1);
+      screen.append(make('div','print-meta'));
+      const card=make('div','card');card.style.setProperty('--accent',section.color);
+      const head=make('div','section-head');head.append(make('div','tag',section.tag),make('h2','',section.title),make('p','',section.desc));card.append(head);
+      const questions=make('div','questions');
+      section.q.forEach((q,qi)=>{
+        const item=make('div','question');const key=`q_${si}_${qi}`;const label=`${section.title}, esercizio ${qi+1}`;
+        item.append(make('span','qnum',`${qi+1}.`),make('span','expr',q[0]));
+        if(q[2]==='exp')addPowerAnswer(item,key,label,false,q[1]);
+        else if(q[2]==='power')addPowerAnswer(item,key,label,true,q[3]||'');
+        else{addTextAnswer(item,key,label);if(q[1])item.append(make('span','unit',q[1]))}
+        questions.append(item);
+      });
+      card.append(questions);screen.append(card);screensRoot.append(screen);
+    });
+
+    const finish=make('section','screen');finish.dataset.page=String(sections.length+1);
+    finish.innerHTML='<div class="card finish"><h2>Controllo e consegna</h2><p>Controlla il riepilogo, poi crea il PDF da allegare alla consegna di Classroom.</p><div id="summary"></div><div class="actions"><button class="btn" id="print" type="button">Esporta la verifica in PDF</button><button class="btn danger" id="clear" type="button">Inizia una nuova verifica</button></div><p class="small"><b>Per salvare:</b> nella finestra di stampa scegli <b>Destinazione → Salva come PDF</b>. Il salvataggio automatico nel browser resta disponibile anche dopo l’esportazione.</p></div>';
+    screensRoot.append(finish);
+
+    for(const id of ['student','classroom','date']){const input=document.getElementById(id);input.value=saved[id]||'';input.addEventListener('input',persist)}
+    if(!document.getElementById('date').value){document.getElementById('date').value=new Date().toISOString().slice(0,10)}
+    if(hadDraft){document.getElementById('restore').classList.add('show');setTimeout(()=>document.getElementById('restore').classList.remove('show'),7000)}
+
+    let page=Number.isInteger(saved.page)?saved.page:0;
+    const screens=[...document.querySelectorAll('.screen')];
+    function collect(){const data={page};document.querySelectorAll('input').forEach(input=>data[input.dataset.key||input.id]=input.value);return data}
+    let saveTimer;
+    function persist(){
+      clearTimeout(saveTimer);const status=document.getElementById('saveStatus');status.textContent='Salvataggio…';
+      saveTimer=setTimeout(()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()));status.textContent='✓ Salvato in questo browser'}catch{status.textContent='Impossibile salvare: controlla il browser'}updateCount()},180);
+    }
+    function complete(si,qi){const key=`q_${si}_${qi}`;const direct=document.querySelector(`[data-key="${key}"]`);if(direct)return !!direct.value.trim();const exp=document.querySelector(`[data-key="${key}_exp"]`);const coef=document.querySelector(`[data-key="${key}_coef"]`);return !!(exp?.value.trim()&&(!coef||coef.value.trim()))}
+    function updateCount(){
+      let filled=0,total=0;const rows=sections.map((section,si)=>{let count=0;section.q.forEach((_,qi)=>{total++;if(complete(si,qi)){filled++;count++}});return `<tr><td>${section.title}</td><td>${count} / ${section.q.length}</td></tr>`}).join('');
+      document.getElementById('count').textContent=`${filled} risposte su ${total}`;
+      document.getElementById('summary').innerHTML=`<table class="summary"><thead><tr><th>Sezione</th><th>Compilate</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th>Totale</th><th>${filled} / ${total}</th></tr></tfoot></table>`;
+    }
+    function showPage(next){
+      page=Math.max(0,Math.min(screens.length-1,next));screens.forEach((screen,i)=>screen.classList.toggle('active',i===page));
+      document.getElementById('prev').disabled=page===0;document.getElementById('next').hidden=page===screens.length-1;
+      document.getElementById('pageLabel').textContent=`Pagina ${page+1} di ${screens.length}`;
+      document.getElementById('stepLabel').textContent=page===0?'Dati dello studente':page===screens.length-1?'Esportazione PDF':`Sezione ${page} di ${sections.length}`;
+      document.getElementById('progressFill').style.width=`${((page+1)/screens.length)*100}%`;
+      updateCount();try{localStorage.setItem(STORE,JSON.stringify(collect()))}catch{}window.scrollTo({top:0,behavior:'instant'});
+    }
+    document.getElementById('prev').addEventListener('click',()=>showPage(page-1));
+    document.getElementById('next').addEventListener('click',()=>showPage(page+1));
+    document.getElementById('print').addEventListener('click',()=>{
+      document.querySelectorAll('.question').forEach(row=>{
+        const direct=row.querySelector('.answer:not(.coef):not(.exp)');
+        if(direct){row.querySelector('.print-value').textContent=direct.value.trim()||'________________';return}
+        const coef=row.querySelector('.coef')?.value.trim();const exp=row.querySelector('.exp')?.value.trim();const output=row.querySelector('.power-print');output.textContent='';
+        if(coef!==undefined)output.append(document.createTextNode(`${coef||'___'} × `));output.append(document.createTextNode('10'));const sup=document.createElement('sup');sup.textContent=exp||'___';output.append(sup);
+      });
+      const name=document.getElementById('student').value||'________________';const classroom=document.getElementById('classroom').value||'________';const date=document.getElementById('date').value||'________';document.querySelectorAll('.print-meta').forEach(meta=>meta.textContent=`Nome: ${name}    Classe: ${classroom}    Data: ${date}`);window.print();
+    });
+    document.getElementById('clear').addEventListener('click',()=>{if(!confirm('Vuoi cancellare definitivamente la bozza salvata su questo browser?'))return;localStorage.removeItem(STORE);document.querySelectorAll('input').forEach(input=>input.value='');document.getElementById('date').value=new Date().toISOString().slice(0,10);page=0;showPage(0);persist()});
+    window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()))}catch{}});
+    showPage(page);
+  </script>
+</body>
+</html>
+
