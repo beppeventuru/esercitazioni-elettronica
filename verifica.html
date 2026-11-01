@@ -19,6 +19,9 @@
     .statusbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 8px 24px #153a5410}
     .statusbar strong{font-size:14px}
     .statusbar .save{margin-left:auto;color:var(--good);font-size:13px;font-weight:700}
+    .recovery{display:flex;align-items:center;gap:8px;width:100%;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+    .recovery code{font-size:15px;font-weight:900;letter-spacing:.08em;color:var(--blue-dark);background:#eaf5fa;padding:5px 8px;border-radius:7px}
+    .recovery button{margin-left:auto;border:1px solid #b7cbd8;border-radius:7px;padding:6px 10px;background:white;color:var(--blue-dark);font-weight:800;cursor:pointer}
     .progress{height:8px;background:#d6e2ec;border-radius:999px;overflow:hidden;margin:12px 3px 0}
     .progress>div{height:100%;width:0;background:linear-gradient(90deg,#087eaa,#38a6c9);transition:width .2s}
     .restore{display:none;margin:14px 0 0;padding:13px 15px;border:1px solid #acd7c9;border-radius:11px;background:#eaf8f3;color:#145f49;font-size:14px}
@@ -82,6 +85,7 @@
       <strong id="pageLabel">Pagina 1</strong>
       <span id="count">0 risposte compilate</span>
       <span class="save" id="saveStatus" role="status">Salvataggio automatico attivo</span>
+      <div class="recovery"><span>Codice di recupero:</span><code id="recoveryCode"></code><span>Conservalo: serve dopo un riavvio.</span><button id="recover" type="button">Riprendi con un codice</button></div>
     </div>
     <div class="progress" aria-label="Avanzamento"><div id="progressFill"></div></div>
     <div class="restore" id="restore" role="status">✓ Abbiamo recuperato la bozza salvata su questo dispositivo.</div>
@@ -96,7 +100,7 @@
             <div><label for="classroom">Classe</label><input id="classroom" placeholder="Es. 2A"></div>
             <div><label for="date">Data</label><input id="date" type="date"></div>
           </div>
-          <div class="instructions"><b>Istruzioni</b><ul><li>Scrivi soltanto il risultato richiesto nella casella.</li><li>Puoi usare la virgola per i numeri decimali.</li><li>Nelle potenze, inserisci l’esponente nella casella piccola sopra il 10.</li><li>Se chiudi per errore, riapri lo stesso link dallo stesso browser e dispositivo.</li><li>Anche senza esportazione, il docente può recuperare la bozza dall’archivio privato.</li><li>Alla fine esporta il PDF e consegnalo su Classroom.</li></ul></div>
+          <div class="instructions"><b>Istruzioni</b><ul><li>Scrivi soltanto il risultato richiesto nella casella.</li><li>Puoi usare la virgola per i numeri decimali.</li><li>Nelle potenze, inserisci l’esponente nella casella piccola sopra il 10.</li><li>Annota il codice di recupero mostrato in alto: dopo un riavvio premi <b>Riprendi con un codice</b>.</li><li>Anche senza esportazione, il docente può recuperare la bozza dall’archivio privato.</li><li>Alla fine esporta il PDF e consegnalo su Classroom.</li></ul></div>
         </div>
       </section>
     </div>
@@ -121,10 +125,18 @@
 
     const STORE='verifica_elettronica_potenze_v1';
     const ARCHIVE_URL='https://script.google.com/macros/s/AKfycbyNVs6I3Mx1QSvM5gvwuxze6Kk9NorPhHH8RDVg9Sdg2_mkyVh-c0kl_5D0sT42x8XB/exec';
-    const newSessionId=()=>globalThis.crypto?.randomUUID?.()||`sessione-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const normaliseCode=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const formatCode=value=>{const raw=normaliseCode(value);return raw.length===12?`${raw.slice(0,4)}-${raw.slice(4,8)}-${raw.slice(8)}`:String(value||'').trim()};
+    const newSessionId=()=>{
+      const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',bytes=new Uint8Array(12);
+      if(globalThis.crypto?.getRandomValues)crypto.getRandomValues(bytes);else bytes.forEach((_,i)=>bytes[i]=(Date.now()+i*37+Math.random()*256)%256);
+      const raw=[...bytes].map(value=>alphabet[value%alphabet.length]).join('');
+      return `${raw.slice(0,4)}-${raw.slice(4,8)}-${raw.slice(8)}`;
+    };
     let saved={};
     try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch{}
     let sessionId=saved.sessionId||newSessionId();
+    document.getElementById('recoveryCode').textContent=sessionId;
     const hadDraft=Object.keys(saved).some(k=>!['page','sessionId'].includes(k)&&String(saved[k]).trim());
     const screensRoot=document.getElementById('screens');
     const make=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node};
@@ -185,6 +197,21 @@
       clearTimeout(saveTimer);const status=document.getElementById('saveStatus');status.textContent='Salvataggio…';
       saveTimer=setTimeout(()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()));status.textContent='✓ Salvato in questo browser';archive()}catch{status.textContent='Impossibile salvare: controlla il browser'}updateCount()},180);
     }
+    function recoverDraft(){
+      const entered=prompt('Inserisci il codice di recupero della verifica:');
+      if(!entered)return;
+      const code=formatCode(entered),callback=`restore_${Date.now()}`,script=document.createElement('script');
+      const cleanup=()=>{delete window[callback];script.remove()};
+      window[callback]=result=>{
+        cleanup();
+        if(!result?.ok){alert('Codice non trovato. Controllalo oppure chiedilo al docente.');return}
+        try{localStorage.setItem(STORE,JSON.stringify({...result.data,sessionId:result.sessionId}));location.reload()}
+        catch{alert('Non è stato possibile ripristinare la verifica su questo browser.')}
+      };
+      script.onerror=()=>{cleanup();alert('Archivio non raggiungibile. Riprova tra poco.')};
+      script.src=`${ARCHIVE_URL}?sessionId=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;
+      document.body.append(script);
+    }
     function complete(si,qi){const key=`q_${si}_${qi}`;const direct=document.querySelector(`[data-key="${key}"]`);if(direct)return !!direct.value.trim();const exp=document.querySelector(`[data-key="${key}_exp"]`);const coef=document.querySelector(`[data-key="${key}_coef"]`);return !!(exp?.value.trim()&&(!coef||coef.value.trim()))}
     function updateCount(){
       let filled=0,total=0;const rows=sections.map((section,si)=>{let count=0;section.q.forEach((_,qi)=>{total++;if(complete(si,qi)){filled++;count++}});return `<tr><td>${section.title}</td><td>${count} / ${section.q.length}</td></tr>`}).join('');
@@ -201,6 +228,7 @@
     }
     document.getElementById('prev').addEventListener('click',()=>showPage(page-1));
     document.getElementById('next').addEventListener('click',()=>showPage(page+1));
+    document.getElementById('recover').addEventListener('click',recoverDraft);
     document.getElementById('print').addEventListener('click',()=>{
       document.querySelectorAll('.question').forEach(row=>{
         const direct=row.querySelector('.answer:not(.coef):not(.exp)');
@@ -210,7 +238,7 @@
       });
       const name=document.getElementById('student').value||'________________';const classroom=document.getElementById('classroom').value||'________';const date=document.getElementById('date').value||'________';document.querySelectorAll('.print-meta').forEach(meta=>meta.textContent=`Nome: ${name}    Classe: ${classroom}    Data: ${date}`);archive('completata');window.print();
     });
-    document.getElementById('clear').addEventListener('click',()=>{if(!confirm('Vuoi cancellare definitivamente la bozza salvata su questo browser?'))return;localStorage.removeItem(STORE);sessionId=newSessionId();document.querySelectorAll('input').forEach(input=>input.value='');document.getElementById('date').value=new Date().toISOString().slice(0,10);page=0;showPage(0);persist()});
+    document.getElementById('clear').addEventListener('click',()=>{if(!confirm('Vuoi cancellare definitivamente la bozza salvata su questo browser?'))return;localStorage.removeItem(STORE);sessionId=newSessionId();document.getElementById('recoveryCode').textContent=sessionId;document.querySelectorAll('input').forEach(input=>input.value='');document.getElementById('date').value=new Date().toISOString().slice(0,10);page=0;showPage(0);persist()});
     window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()))}catch{}});
     showPage(page);
   </script>
