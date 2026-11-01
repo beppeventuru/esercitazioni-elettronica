@@ -120,9 +120,12 @@
     ];
 
     const STORE='verifica_elettronica_potenze_v1';
+    const ARCHIVE_URL='https://script.google.com/macros/s/AKfycbyNVs6I3Mx1QSvM5gvwuxze6Kk9NorPhHH8RDVg9Sdg2_mkyVh-c0kl_5D0sT42x8XB/exec';
+    const newSessionId=()=>globalThis.crypto?.randomUUID?.()||`sessione-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let saved={};
     try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch{}
-    const hadDraft=Object.keys(saved).some(k=>k!=='page'&&String(saved[k]).trim());
+    let sessionId=saved.sessionId||newSessionId();
+    const hadDraft=Object.keys(saved).some(k=>!['page','sessionId'].includes(k)&&String(saved[k]).trim());
     const screensRoot=document.getElementById('screens');
     const make=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node};
 
@@ -165,11 +168,22 @@
 
     let page=Number.isInteger(saved.page)?saved.page:0;
     const screens=[...document.querySelectorAll('.screen')];
-    function collect(){const data={page};document.querySelectorAll('input').forEach(input=>data[input.dataset.key||input.id]=input.value);return data}
-    let saveTimer;
+    function collect(){const data={page,sessionId};document.querySelectorAll('input').forEach(input=>data[input.dataset.key||input.id]=input.value);return data}
+    let saveTimer,archiveTimer;
+    function archive(status='in_corso'){
+      clearTimeout(archiveTimer);
+      archiveTimer=setTimeout(()=>{
+        const data=collect(),student=data.student.trim();
+        if(!student)return;
+        const label=document.getElementById('saveStatus');
+        fetch(ARCHIVE_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({sessionId,student,classroom:data.classroom.trim(),status,page,data})})
+          .then(()=>{label.textContent='✓ Salvato sul dispositivo e nell’archivio del docente'})
+          .catch(()=>{label.textContent='✓ Salvato sul dispositivo · archivio docente non raggiungibile'});
+      },status==='completata'?0:1200);
+    }
     function persist(){
       clearTimeout(saveTimer);const status=document.getElementById('saveStatus');status.textContent='Salvataggio…';
-      saveTimer=setTimeout(()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()));status.textContent='✓ Salvato in questo browser'}catch{status.textContent='Impossibile salvare: controlla il browser'}updateCount()},180);
+      saveTimer=setTimeout(()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()));status.textContent='✓ Salvato in questo browser';archive()}catch{status.textContent='Impossibile salvare: controlla il browser'}updateCount()},180);
     }
     function complete(si,qi){const key=`q_${si}_${qi}`;const direct=document.querySelector(`[data-key="${key}"]`);if(direct)return !!direct.value.trim();const exp=document.querySelector(`[data-key="${key}_exp"]`);const coef=document.querySelector(`[data-key="${key}_coef"]`);return !!(exp?.value.trim()&&(!coef||coef.value.trim()))}
     function updateCount(){
@@ -183,7 +197,7 @@
       document.getElementById('pageLabel').textContent=`Pagina ${page+1} di ${screens.length}`;
       document.getElementById('stepLabel').textContent=page===0?'Dati dello studente':page===screens.length-1?'Esportazione PDF':`Sezione ${page} di ${sections.length}`;
       document.getElementById('progressFill').style.width=`${((page+1)/screens.length)*100}%`;
-      updateCount();try{localStorage.setItem(STORE,JSON.stringify(collect()))}catch{}window.scrollTo({top:0,behavior:'instant'});
+      updateCount();try{localStorage.setItem(STORE,JSON.stringify(collect()));archive()}catch{}window.scrollTo({top:0,behavior:'instant'});
     }
     document.getElementById('prev').addEventListener('click',()=>showPage(page-1));
     document.getElementById('next').addEventListener('click',()=>showPage(page+1));
@@ -194,9 +208,9 @@
         const coef=row.querySelector('.coef')?.value.trim();const exp=row.querySelector('.exp')?.value.trim();const output=row.querySelector('.power-print');output.textContent='';
         if(coef!==undefined)output.append(document.createTextNode(`${coef||'___'} × `));output.append(document.createTextNode('10'));const sup=document.createElement('sup');sup.textContent=exp||'___';output.append(sup);
       });
-      const name=document.getElementById('student').value||'________________';const classroom=document.getElementById('classroom').value||'________';const date=document.getElementById('date').value||'________';document.querySelectorAll('.print-meta').forEach(meta=>meta.textContent=`Nome: ${name}    Classe: ${classroom}    Data: ${date}`);window.print();
+      const name=document.getElementById('student').value||'________________';const classroom=document.getElementById('classroom').value||'________';const date=document.getElementById('date').value||'________';document.querySelectorAll('.print-meta').forEach(meta=>meta.textContent=`Nome: ${name}    Classe: ${classroom}    Data: ${date}`);archive('completata');window.print();
     });
-    document.getElementById('clear').addEventListener('click',()=>{if(!confirm('Vuoi cancellare definitivamente la bozza salvata su questo browser?'))return;localStorage.removeItem(STORE);document.querySelectorAll('input').forEach(input=>input.value='');document.getElementById('date').value=new Date().toISOString().slice(0,10);page=0;showPage(0);persist()});
+    document.getElementById('clear').addEventListener('click',()=>{if(!confirm('Vuoi cancellare definitivamente la bozza salvata su questo browser?'))return;localStorage.removeItem(STORE);sessionId=newSessionId();document.querySelectorAll('input').forEach(input=>input.value='');document.getElementById('date').value=new Date().toISOString().slice(0,10);page=0;showPage(0);persist()});
     window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()))}catch{}});
     showPage(page);
   </script>
