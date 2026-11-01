@@ -128,10 +128,9 @@
     const normaliseCode=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     const formatCode=value=>{const raw=normaliseCode(value);return raw.length===12?`${raw.slice(0,4)}-${raw.slice(4,8)}-${raw.slice(8)}`:String(value||'').trim()};
     const newSessionId=()=>{
-      const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',bytes=new Uint8Array(12);
-      if(globalThis.crypto?.getRandomValues)crypto.getRandomValues(bytes);else bytes.forEach((_,i)=>bytes[i]=(Date.now()+i*37+Math.random()*256)%256);
-      const raw=[...bytes].map(value=>alphabet[value%alphabet.length]).join('');
-      return `${raw.slice(0,4)}-${raw.slice(4,8)}-${raw.slice(8)}`;
+      const bytes=new Uint8Array(18);
+      if(globalThis.crypto?.getRandomValues)crypto.getRandomValues(bytes);else bytes.forEach((_,i)=>bytes[i]=(Date.now()+i*41+Math.random()*256)%256);
+      return String(1+(bytes[0]%9))+[...bytes.slice(1)].map(value=>value%10).join('');
     };
     let saved={};
     try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch{}
