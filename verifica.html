@@ -32,7 +32,7 @@
     .cover{padding:26px}
     .cover h2,.finish h2{margin:0 0 8px;font-size:25px}
     .cover>p,.finish>p{color:var(--muted);line-height:1.6}
-    .fields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;margin:24px 0}
+    .fields{display:grid;grid-template-columns:1.4fr 1.4fr .8fr 1fr;gap:14px;margin:24px 0}
     label{display:block;font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px}
     .identity input{width:100%;padding:12px;border:1px solid #bccbd8;border-radius:9px;background:white}
     .identity input:focus,.answer:focus{outline:3px solid #b9e6f6;border-color:var(--blue)}
@@ -96,8 +96,9 @@
           <h2>Prima di iniziare</h2>
           <p>Inserisci i tuoi dati. Le risposte vengono salvate automaticamente su questo browser e nell’archivio privato del docente mentre lavori.</p>
           <div class="fields identity">
-            <div><label for="student">Nome e cognome</label><input id="student" autocomplete="name" placeholder="Nome e cognome"></div>
-            <div><label for="classroom">Classe</label><input id="classroom" placeholder="Es. 2A"></div>
+            <div><label for="firstName">Nome</label><input id="firstName" autocomplete="given-name" placeholder="Nome"></div>
+            <div><label for="lastName">Cognome</label><input id="lastName" autocomplete="family-name" placeholder="Cognome"></div>
+            <div><label for="classroom">Classe</label><input id="classroom" placeholder="Es. 3A"></div>
             <div><label for="date">Data</label><input id="date" type="date"></div>
           </div>
           <div class="instructions"><b>Istruzioni</b><ul><li>Scrivi soltanto il risultato richiesto nella casella.</li><li>Puoi usare la virgola per i numeri decimali.</li><li>Nelle potenze, inserisci l’esponente nella casella piccola sopra il 10.</li><li>Annota il codice di recupero mostrato in alto: dopo un riavvio premi <b>Riprendi con un codice</b>.</li><li>Anche senza esportazione, il docente può recuperare la bozza dall’archivio privato.</li><li>Alla fine esporta il PDF e consegnalo su Classroom.</li></ul></div>
@@ -134,6 +135,9 @@
     };
     let saved={};
     try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch{}
+    const oldName=String(saved.student||'').trim().split(/\s+/).filter(Boolean);
+    if(!saved.firstName&&oldName.length)saved.firstName=oldName.shift();
+    if(!saved.lastName&&oldName.length)saved.lastName=oldName.join(' ');
     let sessionId=/^\d{3}$/.test(String(saved.sessionId||''))?String(saved.sessionId):newSessionId();
     if(saved.sessionId!==sessionId){saved.sessionId=sessionId;localStorage.setItem(STORE,JSON.stringify(saved))}
     document.getElementById('recoveryCode').textContent=sessionId;
@@ -174,7 +178,7 @@
     finish.innerHTML='<div class="card finish"><h2>Controllo e consegna</h2><p>Controlla il riepilogo, poi crea il PDF da allegare alla consegna di Classroom.</p><div id="summary"></div><div class="actions"><button class="btn" id="print" type="button">Esporta la verifica in PDF</button><button class="btn danger" id="clear" type="button">Inizia una nuova verifica</button></div><p class="small"><b>Per salvare:</b> nella finestra di stampa scegli <b>Destinazione → Salva come PDF</b>. Il salvataggio automatico nel browser resta disponibile anche dopo l’esportazione.</p></div>';
     screensRoot.append(finish);
 
-    for(const id of ['student','classroom','date']){const input=document.getElementById(id);input.value=saved[id]||'';input.addEventListener('input',persist)}
+    for(const id of ['firstName','lastName','classroom','date']){const input=document.getElementById(id);input.value=saved[id]||'';input.addEventListener('input',persist)}
     if(!document.getElementById('date').value){document.getElementById('date').value=new Date().toISOString().slice(0,10)}
     if(hadDraft){document.getElementById('restore').classList.add('show');setTimeout(()=>document.getElementById('restore').classList.remove('show'),7000)}
 
@@ -185,10 +189,10 @@
     function archive(status='in_corso'){
       clearTimeout(archiveTimer);
       archiveTimer=setTimeout(()=>{
-        const data=collect(),student=data.student.trim();
-        if(!student)return;
+        const data=collect(),firstName=data.firstName.trim(),lastName=data.lastName.trim(),student=`${firstName} ${lastName}`.trim();
+        if(!firstName||!lastName)return;
         const label=document.getElementById('saveStatus');
-        fetch(ARCHIVE_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({sessionId,student,classroom:data.classroom.trim(),status,page,data})})
+        fetch(ARCHIVE_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({sessionId,student,firstName,lastName,classroom:data.classroom.trim(),status,page,data})})
           .then(()=>{label.textContent='✓ Salvato sul dispositivo e nell’archivio del docente'})
           .catch(()=>{label.textContent='✓ Salvato sul dispositivo · archivio docente non raggiungibile'});
       },status==='completata'?0:1200);
@@ -200,8 +204,11 @@
     function recoverDraft(){
       const entered=prompt('Inserisci il codice di recupero della verifica:');
       if(!entered)return;
-      const student=document.getElementById('student').value.trim()||prompt('Inserisci nome e cognome usati nella verifica:');
-      if(!student)return;
+      const firstName=document.getElementById('firstName').value.trim()||prompt('Inserisci il nome usato nella verifica:');
+      if(!firstName)return;
+      const lastName=document.getElementById('lastName').value.trim()||prompt('Inserisci il cognome usato nella verifica:');
+      if(!lastName)return;
+      const student=`${firstName} ${lastName}`.trim();
       const classroom=document.getElementById('classroom').value.trim()||prompt('Inserisci la classe usata nella verifica:');
       if(!classroom)return;
       const code=formatCode(entered),callback=`restore_${Date.now()}`,script=document.createElement('script');
@@ -213,7 +220,7 @@
         catch{alert('Non è stato possibile ripristinare la verifica su questo browser.')}
       };
       script.onerror=()=>{cleanup();alert('Archivio non raggiungibile. Riprova tra poco.')};
-      script.src=`${ARCHIVE_URL}?sessionId=${encodeURIComponent(code)}&student=${encodeURIComponent(student)}&classroom=${encodeURIComponent(classroom)}&callback=${encodeURIComponent(callback)}`;
+      script.src=`${ARCHIVE_URL}?sessionId=${encodeURIComponent(code)}&student=${encodeURIComponent(student)}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&classroom=${encodeURIComponent(classroom)}&callback=${encodeURIComponent(callback)}`;
       document.body.append(script);
     }
     function complete(si,qi){const key=`q_${si}_${qi}`;const direct=document.querySelector(`[data-key="${key}"]`);if(direct)return !!direct.value.trim();const exp=document.querySelector(`[data-key="${key}_exp"]`);const coef=document.querySelector(`[data-key="${key}_coef"]`);return !!(exp?.value.trim()&&(!coef||coef.value.trim()))}
@@ -240,7 +247,7 @@
         const coef=row.querySelector('.coef')?.value.trim();const exp=row.querySelector('.exp')?.value.trim();const output=row.querySelector('.power-print');output.textContent='';
         if(coef!==undefined)output.append(document.createTextNode(`${coef||'___'} × `));output.append(document.createTextNode('10'));const sup=document.createElement('sup');sup.textContent=exp||'___';output.append(sup);
       });
-      const name=document.getElementById('student').value||'________________';const classroom=document.getElementById('classroom').value||'________';const date=document.getElementById('date').value||'________';document.querySelectorAll('.print-meta').forEach(meta=>meta.textContent=`Nome: ${name}    Classe: ${classroom}    Data: ${date}`);archive('completata');window.print();
+      const name=`${document.getElementById('firstName').value} ${document.getElementById('lastName').value}`.trim()||'________________';const classroom=document.getElementById('classroom').value||'________';const date=document.getElementById('date').value||'________';document.querySelectorAll('.print-meta').forEach(meta=>meta.textContent=`Nome: ${name}    Classe: ${classroom}    Data: ${date}`);archive('completata');window.print();
     });
     document.getElementById('clear').addEventListener('click',()=>{if(!confirm('Vuoi cancellare definitivamente la bozza salvata su questo browser?'))return;localStorage.removeItem(STORE);sessionId=newSessionId();document.getElementById('recoveryCode').textContent=sessionId;document.querySelectorAll('input').forEach(input=>input.value='');document.getElementById('date').value=new Date().toISOString().slice(0,10);page=0;showPage(0);persist()});
     window.addEventListener('beforeunload',()=>{try{localStorage.setItem(STORE,JSON.stringify(collect()))}catch{}});
