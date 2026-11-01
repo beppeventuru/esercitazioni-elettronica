@@ -134,7 +134,8 @@
     };
     let saved={};
     try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch{}
-    let sessionId=saved.sessionId||newSessionId();
+    let sessionId=/^\d{3}$/.test(String(saved.sessionId||''))?String(saved.sessionId):newSessionId();
+    if(saved.sessionId!==sessionId){saved.sessionId=sessionId;localStorage.setItem(STORE,JSON.stringify(saved))}
     document.getElementById('recoveryCode').textContent=sessionId;
     const hadDraft=Object.keys(saved).some(k=>!['page','sessionId'].includes(k)&&String(saved[k]).trim());
     const screensRoot=document.getElementById('screens');
