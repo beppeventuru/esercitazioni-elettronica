@@ -128,9 +128,9 @@
     const normaliseCode=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     const formatCode=value=>{const raw=normaliseCode(value);return raw.length===12?`${raw.slice(0,4)}-${raw.slice(4,8)}-${raw.slice(8)}`:String(value||'').trim()};
     const newSessionId=()=>{
-      const bytes=new Uint8Array(18);
-      if(globalThis.crypto?.getRandomValues)crypto.getRandomValues(bytes);else bytes.forEach((_,i)=>bytes[i]=(Date.now()+i*41+Math.random()*256)%256);
-      return String(1+(bytes[0]%9))+[...bytes.slice(1)].map(value=>value%10).join('');
+      const value=new Uint16Array(1);
+      if(globalThis.crypto?.getRandomValues)crypto.getRandomValues(value);else value[0]=(Date.now()+Math.random()*65536)%65536;
+      return String(100+(value[0]%900));
     };
     let saved={};
     try{saved=JSON.parse(localStorage.getItem(STORE)||'{}')}catch{}
@@ -199,6 +199,10 @@
     function recoverDraft(){
       const entered=prompt('Inserisci il codice di recupero della verifica:');
       if(!entered)return;
+      const student=document.getElementById('student').value.trim()||prompt('Inserisci nome e cognome usati nella verifica:');
+      if(!student)return;
+      const classroom=document.getElementById('classroom').value.trim()||prompt('Inserisci la classe usata nella verifica:');
+      if(!classroom)return;
       const code=formatCode(entered),callback=`restore_${Date.now()}`,script=document.createElement('script');
       const cleanup=()=>{delete window[callback];script.remove()};
       window[callback]=result=>{
@@ -208,7 +212,7 @@
         catch{alert('Non è stato possibile ripristinare la verifica su questo browser.')}
       };
       script.onerror=()=>{cleanup();alert('Archivio non raggiungibile. Riprova tra poco.')};
-      script.src=`${ARCHIVE_URL}?sessionId=${encodeURIComponent(code)}&callback=${encodeURIComponent(callback)}`;
+      script.src=`${ARCHIVE_URL}?sessionId=${encodeURIComponent(code)}&student=${encodeURIComponent(student)}&classroom=${encodeURIComponent(classroom)}&callback=${encodeURIComponent(callback)}`;
       document.body.append(script);
     }
     function complete(si,qi){const key=`q_${si}_${qi}`;const direct=document.querySelector(`[data-key="${key}"]`);if(direct)return !!direct.value.trim();const exp=document.querySelector(`[data-key="${key}_exp"]`);const coef=document.querySelector(`[data-key="${key}_coef"]`);return !!(exp?.value.trim()&&(!coef||coef.value.trim()))}
